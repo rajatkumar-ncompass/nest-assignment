@@ -5,6 +5,7 @@ import { UsersService } from 'src/users/users.service';
 import { signInDto } from './dtos/signIn.dto';
 import { Response } from 'express';
 import { forgotPasswordDto } from './dtos/forgotPassword.dto';
+import { resetPasswordDto } from './dtos/resetPassword.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -87,8 +88,27 @@ export class AuthController {
     }
 
     @Post('reset-password')
-    async resetPassword(@Body() email: forgotPasswordDto) {
-        const forgotPasswordResponse = this.authService.forgotPassword(email)
-        return forgotPasswordResponse
+    async resetPassword(@Body() resetPasswordDto: resetPasswordDto, @Res() res: Response) {
+        const resetPasswordResponse = await this.authService.resetPassword(resetPasswordDto)
+        try {
+            const successObj = {
+                status: HttpStatus.ACCEPTED,
+                data: {
+                    message: "Password Changed Successfully",
+                    data: resetPasswordResponse
+                }
+            }
+            res.status(HttpStatus.FOUND).send(successObj)
+        } catch (error) {
+            const errorObj = {
+                status: HttpStatus.EXPECTATION_FAILED,
+                data:
+                {
+                    message: "Some Error Occured",
+                    data: error
+                }
+            }
+            res.status(HttpStatus.EXPECTATION_FAILED).send(errorObj)
+        }
     }
 }

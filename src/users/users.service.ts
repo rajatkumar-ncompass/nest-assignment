@@ -10,12 +10,15 @@ export class UsersService {
     constructor(@InjectRepository(user) private userRepository: Repository<user>) { }
 
     async findAuthorByEmail(email: string) {
+        
         const response = await
             this.userRepository
                 .createQueryBuilder()
                 .select()
                 .where(`EMAIL = :EMAIL`, { EMAIL: email })
-                .getRawOne();
+                .getOne();
+
+        console.log(response)
         return response;
     }
 

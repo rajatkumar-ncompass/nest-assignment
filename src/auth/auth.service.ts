@@ -8,15 +8,17 @@ import { user } from 'src/typeorm/entities/user';
 import { InjectRepository } from '@nestjs/typeorm';
 import { forgotPasswordParams } from './types/forgotPasswordParams';
 import { signInParams } from './types/signInParamas';
+import { AES } from 'crypto-ts';
+import { resetPasswordParams } from './types/resetPasswordParams';
 
 
-function generateOTP(length: number): string {
-    const digits = '0123456789';
-    let OTP = '';
-    for (let i = 0; i < length; i++) {
-        OTP += digits.charAt(Math.floor(Math.random() * digits.length));
+const dummyKey: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function generateOTP(characters: string): string {
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
     }
-    return OTP;
+    return result;
 }
 
 @Injectable()
@@ -32,16 +34,14 @@ export class AuthService {
         signInDetails: signInParams
     ): Promise<{ access_token: string }> {
         const user = await this.usersService.findAuthorByEmail(signInDetails.EMAIL);
-        if (user?.user_PASSWORD !== Md5.hashStr(signInDetails.PASSWORD)) {
+        if (user?.PASSWORD !== Md5.hashStr(signInDetails.PASSWORD)) {
             throw new UnauthorizedException();
         }
-        const payload = { sub: user.userId, username: user.username };
+        const payload = { sub: user.ID, username: user.PASSWORD };
         return {
             access_token: await this.jwtService.signAsync(payload),
         };
     }
-
-
 
     async createUser(userDetails: createUserParams) {
         const encryptedPassword = Md5.hashStr(userDetails["PASSWORD"])
@@ -61,11 +61,48 @@ export class AuthService {
         if (!user) {
             throw new UnauthorizedException();
         }
-        const otp = generateOTP(6)
+        const encryptedMessage = AES.encrypt(forgotPasswordDetails.EMAIL, 'test').toString();
+        const otp = generateOTP(encryptedMessage)
         const forgotPasswordResponse = {
             otp: otp
         }
+        await
+            this.userRepository
+                .createQueryBuilder()
+                .update(user)
+                .set({ OTP: otp, OTP_EXPIRE: new Date() })
+                .where(`EMAIL = :EMAIL`, { EMAIL: forgotPasswordDetails.EMAIL })
+                .execute()
+
         return forgotPasswordResponse
+    }
+
+    async resetPassword(resetPasswordDetails: resetPasswordParams) {
+
+        const fetchOtp = await
+            this.userRepository
+                .createQueryBuilder()
+                .select()
+                .where(`EMAIL = :EMAIL`, { EMAIL: resetPasswordDetails.EMAIL })
+                .getOne();
+        const currentDate = new Date()
+        const diff = Math.abs(fetchOtp.OTP_EXPIRE.valueOf() - currentDate.valueOf())
+        if ((diff / 1000) > 40) {
+            throw new UnauthorizedException()
+        }
+        if (fetchOtp.OTP != resetPasswordDetails.OTP.toString()) {
+            throw new UnauthorizedException()
+        }
+        const hashedPassword = Md5.hashStr(resetPasswordDetails.NEWPASSWORD)
+        const updatePasswordResponse = await
+            this.userRepository
+                .createQueryBuilder()
+                .update(user)
+                .set({ PASSWORD: hashedPassword })
+                .where(`EMAIL = :EMAIL`, { EMAIL: resetPasswordDetails.EMAIL })
+                .execute()
+
+        return updatePasswordResponse
     }
 
 }

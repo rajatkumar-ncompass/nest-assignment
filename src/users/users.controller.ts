@@ -9,7 +9,7 @@ import { AuthGuard } from 'src/auth/auth.guard';
 export class UsersController {
     constructor(private userService: UsersService, private authService: AuthService) { }
 
-    @Get(":id")
+    @Get(":email")
     async getAuthorById(@Param('email') email: string, @Res() res: Response) {
         try {
             const response = await this.userService.findAuthorByEmail(email);

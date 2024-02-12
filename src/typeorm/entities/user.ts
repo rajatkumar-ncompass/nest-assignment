@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm'
 
 @Entity()
 export class user {
@@ -20,4 +20,10 @@ export class user {
 
     @Column({ default: 1 })
     IS_ACTIVE: boolean
+
+    @Column()
+    OTP: string
+
+    @CreateDateColumn()
+    OTP_EXPIRE: Date;
 }
